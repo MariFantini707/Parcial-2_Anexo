@@ -36,7 +36,7 @@ talisman = Talisman(app, content_security_policy=csp)
 # Suprimir el encabezado "Server" usando un hook de respuesta
 @app.after_request
 def remove_server_header(response):
-    response.headers['Server'] = 'GenericServer'  # Modificar el encabezado "Server" a un valor genérico
+    response.headers['Server'] = 'GenericServer'  # Cambiar el encabezado "Server" a un valor genérico
     return response
 
 # Conexión a la base de datos
