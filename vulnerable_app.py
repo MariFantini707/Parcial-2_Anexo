@@ -2,7 +2,6 @@ from flask import Flask, request, session, redirect, url_for, flash, render_temp
 import sqlite3
 import os
 import bcrypt
-from markupsafe import escape
 from flask_wtf.csrf import CSRFProtect
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
