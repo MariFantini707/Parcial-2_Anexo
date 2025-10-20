@@ -4,6 +4,9 @@ import os
 import bcrypt
 from markupsafe import escape
 from flask_wtf.csrf import CSRFProtect
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField
+from wtforms.validators import InputRequired
 
 # Inicializar la app y protección CSRF
 app = Flask(__name__)
@@ -25,6 +28,11 @@ def hash_password(password):
 def check_password(stored_password, provided_password):
     return bcrypt.checkpw(provided_password.encode(), stored_password.encode())
 
+# Clase de formulario de Login con Flask-WTF
+class LoginForm(FlaskForm):
+    username = StringField('Username', validators=[InputRequired()])
+    password = PasswordField('Password', validators=[InputRequired()])
+
 # Página de inicio
 @app.route('/')
 def index():
@@ -33,9 +41,10 @@ def index():
 # Ruta de login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+    form = LoginForm()
+    if form.validate_on_submit():
+        username = form.username.data
+        password = form.password.data
 
         conn = get_db_connection()
         query = "SELECT * FROM users WHERE username = ?"
@@ -48,7 +57,8 @@ def login():
         else:
             flash('Invalid credentials!', 'danger')
             return redirect(url_for('login'))
-    return render_template('login.html')
+
+    return render_template('login.html', form=form)
 
 # Ruta de dashboard
 @app.route('/dashboard')
@@ -62,7 +72,6 @@ def dashboard():
         "SELECT * FROM tasks WHERE user_id = ?", (user_id,)).fetchall()
     conn.close()
 
-    # Usando render_template y pasando los datos al HTML
     return render_template('dashboard.html', user_id=user_id, tasks=tasks)
 
 # Ruta para agregar tarea
@@ -102,7 +111,6 @@ def admin():
         return redirect(url_for('login'))
 
     return 'Welcome to the admin panel!'
-
 
 if __name__ == '__main__':
     app.run(debug=True)
