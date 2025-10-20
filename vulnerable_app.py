@@ -33,12 +33,6 @@ csp = {
 # Aplicar CSP a la aplicación Flask
 talisman = Talisman(app, content_security_policy=csp)
 
-# Suprimir el encabezado "Server" usando un hook de respuesta
-@app.after_request
-def remove_server_header(response):
-    response.headers['Server'] = 'GenericServer'  # Modificar el encabezado "Server" a un valor genérico
-    return response
-
 # Conexión a la base de datos
 def get_db_connection():
     conn = sqlite3.connect('database.db')
