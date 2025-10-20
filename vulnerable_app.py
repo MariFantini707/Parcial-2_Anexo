@@ -18,16 +18,11 @@ csrf = CSRFProtect(app)
 csp = {
     'default-src': ['\'self\''],  # Solo permitir contenido de la misma fuente
     'script-src': ['\'self\'', 'https://trusted-scripts.com'],  # Permitir scripts desde 'self' y un dominio de confianza
-    'style-src': ['\'self\'', 'https://trusted-styles.com', 'https://fonts.googleapis.com'],  # Permitir estilos desde 'self' y un dominio de confianza
+    'style-src': ['\'self\'', 'https://trusted-styles.com'],  # Permitir estilos desde 'self' y un dominio de confianza
     'img-src': ['\'self\'', 'https://trusted-images.com'],  # Permitir imágenes desde 'self' y un dominio de confianza
-    'font-src': ['\'self\'', 'https://trusted-fonts.com', 'https://fonts.gstatic.com'],  # Permitir fuentes desde 'self' y un dominio de confianza
+    'font-src': ['\'self\'', 'https://trusted-fonts.com'],  # Permitir fuentes desde 'self' y un dominio de confianza
     'connect-src': ['\'self\''],  # Permitir conexiones XHR desde 'self'
     'frame-src': ['\'self\''],  # Permitir marcos solo desde 'self'
-    'object-src': ['\'none\''],  # Deshabilitar los objetos embebidos como applets de Java, Flash, etc.
-    'media-src': ['\'self\''],  # Permitir solo medios desde 'self'
-    'child-src': ['\'none\''],  # Deshabilitar cargas de contenido en iframes y marcos
-    'form-action': ['\'self\''],  # Permitir que los formularios solo apunten a 'self'
-    'upgrade-insecure-requests': [],  # Opcional: obliga a actualizar solicitudes HTTP a HTTPS
 }
 
 # Aplicar CSP a la aplicación Flask
@@ -134,3 +129,4 @@ def admin():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
