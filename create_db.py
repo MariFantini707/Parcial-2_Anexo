@@ -50,3 +50,4 @@ def create_db():
 
 print("Base de datos y tablas creadas con éxito.")
 
+
