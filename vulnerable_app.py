@@ -7,11 +7,27 @@ from flask_wtf.csrf import CSRFProtect
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
 from wtforms.validators import InputRequired
+from flask_talisman import Talisman  # hay quwe importar Flask-Talisman
 
 # Inicializar la app y protección CSRF
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 csrf = CSRFProtect(app)
+
+# Configuración de Flask-Talisman para CSP
+#esto fue agregado en base a lo que ZAP recomendó 
+csp = {
+    'default-src': ['\'self\''],  # esto sirve para solo permitir contenido de la misma fuente
+    'script-src': ['\'self\'', 'https://trusted-scripts.com'],  # Permitir scripts desde 'self' y un dominio de confianza
+    'style-src': ['\'self\'', 'https://trusted-styles.com'],  # Permitir estilos desde 'self' y un dominio de confianza
+    'img-src': ['\'self\'', 'https://trusted-images.com'],  # Permitir imágenes desde 'self' y un dominio de confianza
+    'font-src': ['\'self\'', 'https://trusted-fonts.com'],  # Permitir fuentes desde 'self' y un dominio de confianza
+    'connect-src': ['\'self\''],  # Permitir conexiones XHR desde 'self'
+    'frame-src': ['\'self\''],  # Permitir marcos solo desde 'self'
+}
+
+# Aplicar CSP a la aplicación Flask
+talisman = Talisman(app, content_security_policy=csp)
 
 # Conexión a la base de datos
 def get_db_connection():
