@@ -7,11 +7,20 @@
   <body>
     <h1>Login</h1>
     <form method="post">
-        {{ form.hidden_tag() }}  
+        {{ form.hidden_tag() }} <!-- CSRF token -->
         Username: <input type="text" name="username" value="{{ form.username.data }}"><br>
         Password: <input type="password" name="password" value="{{ form.password.data }}"><br>
         <input type="submit" value="Login">
     </form>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul>
+        {% for category, message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
   </body>
 </html>
 

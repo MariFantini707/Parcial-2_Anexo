@@ -1,6 +1,15 @@
 import sqlite3
 from vulnerable_app import hash_password
 
+# Conexión a la base de datos (se creará automáticamente si no existe)
+conn = sqlite3.connect('database.db')
+
+# Crear un cursor
+c = conn.cursor()
+
+# Guardar los cambios y cerrar la conexión
+conn.commit()
+conn.close()
 
 def create_db():
     conn = sqlite3.connect('database.db')
@@ -40,5 +49,6 @@ def create_db():
     conn.close()
 
 print("Base de datos y tablas creadas con éxito.")
+
 
 
