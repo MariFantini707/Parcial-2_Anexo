@@ -2,6 +2,7 @@ from flask import Flask, request, session, redirect, url_for, flash, render_temp
 import sqlite3
 import os
 import bcrypt
+from markupsafe import escape
 from flask_wtf.csrf import CSRFProtect
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
@@ -15,18 +16,18 @@ csrf = CSRFProtect(app)
 
 # Configuración de Flask-Talisman para CSP
 csp = {
-    'default-src': ['\'self\''],  
-    'script-src': ['\'self\'', 'https://trusted-scripts.com'],  
-    'style-src': ['\'self\'', 'https://trusted-styles.com', 'https://fonts.googleapis.com'],  
-    'img-src': ['\'self\'', 'https://trusted-images.com'],  
-    'font-src': ['\'self\'', 'https://trusted-fonts.com', 'https://fonts.gstatic.com'],  
-    'connect-src': ['\'self\''],  
-    'frame-src': ['\'self\''],  
-    'object-src': ['\'none\''],  
-    'media-src': ['\'self\''],  
-    'child-src': ['\'none\''],  
-    'form-action': ['\'self\''],  
-    'upgrade-insecure-requests': [],  
+    'default-src': ['\'self\''],  # Solo permitir contenido de la misma fuente
+    'script-src': ['\'self\'', 'https://trusted-scripts.com'],  # Permitir scripts desde 'self' y un dominio de confianza
+    'style-src': ['\'self\'', 'https://trusted-styles.com', 'https://fonts.googleapis.com'],  # Permitir estilos desde 'self' y un dominio de confianza
+    'img-src': ['\'self\'', 'https://trusted-images.com'],  # Permitir imágenes desde 'self' y un dominio de confianza
+    'font-src': ['\'self\'', 'https://trusted-fonts.com', 'https://fonts.gstatic.com'],  # Permitir fuentes desde 'self' y un dominio de confianza
+    'connect-src': ['\'self\''],  # Permitir conexiones XHR desde 'self'
+    'frame-src': ['\'self\''],  # Permitir marcos solo desde 'self'
+    'object-src': ['\'none\''],  # Deshabilitar los objetos embebidos como applets de Java, Flash, etc.
+    'media-src': ['\'self\''],  # Permitir solo medios desde 'self'
+    'child-src': ['\'none\''],  # Deshabilitar cargas de contenido en iframes y marcos
+    'form-action': ['\'self\''],  # Permitir que los formularios solo apunten a 'self'
+    'upgrade-insecure-requests': [],  # Opcional: obliga a actualizar solicitudes HTTP a HTTPS
 }
 
 # Aplicar CSP a la aplicación Flask
@@ -35,7 +36,7 @@ talisman = Talisman(app, content_security_policy=csp)
 # Suprimir el encabezado "Server" usando un hook de respuesta
 @app.after_request
 def remove_server_header(response):
-    response.headers['Server'] = 'GenericServer'  
+    response.headers['Server'] = 'GenericServer'  # Modificar el encabezado "Server" a un valor genérico
     return response
 
 # Conexión a la base de datos
@@ -46,24 +47,12 @@ def get_db_connection():
 
 # Función para hash de contraseñas con bcrypt
 def hash_password(password):
-    # Asegurarse de que la contraseña sea convertida a bytes
-    password_bytes = password.encode('utf-8')
-    
-    # Generar un salt con bcrypt (el salt debe ser generado como bytes)
     salt = bcrypt.gensalt()
-    
-    # Hashear la contraseña usando el salt
-    hashed_password = bcrypt.hashpw(password_bytes, salt)
-    
-    return hashed_password
+    return bcrypt.hashpw(password.encode(), salt).decode()
 
 # Función para verificar contraseña con bcrypt
 def check_password(stored_password, provided_password):
-    # Asegurarse de que la contraseña proporcionada esté en bytes
-    provided_password_bytes = provided_password.encode('utf-8')
-    
-    # Verifica si la contraseña proporcionada coincide con el hash almacenado
-    return bcrypt.checkpw(provided_password_bytes, stored_password)
+    return bcrypt.checkpw(provided_password.encode(), stored_password.encode())
 
 # Clase de formulario de Login con Flask-WTF
 class LoginForm(FlaskForm):
