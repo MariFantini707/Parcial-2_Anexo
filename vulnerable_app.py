@@ -7,9 +7,18 @@ from flask_wtf.csrf import CSRFProtect
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
 from wtforms.validators import InputRequired
-from flask_talisman import Talisman  # Importar Flask-Talisman
+from flask_talisman import Talisman  
 
-# Inicializar la app y protección CSRF
+from functools import wraps
+from flask_wtf.csrf import CSRFProtect, generate_csrf
+from authlib.integrations.flask_client import OAuth
+from dotenv import load_dotenv
+
+#estos los entrega el tutorial de auth0
+import json
+from os import environ as env
+from urllib.parse import quote_plus, urlencode
+
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 csrf = CSRFProtect(app)
@@ -17,16 +26,124 @@ csrf = CSRFProtect(app)
 # Configuración de Flask-Talisman para CSP
 csp = {
     'default-src': ['\'self\''],  # Solo permitir contenido de la misma fuente
-    'script-src': ['\'self\'', 'https://trusted-scripts.com'],  # Permitir scripts desde 'self' y un dominio de confianza
-    'style-src': ['\'self\'', 'https://trusted-styles.com'],  # Permitir estilos desde 'self' y un dominio de confianza
-    'img-src': ['\'self\'', 'https://trusted-images.com'],  # Permitir imágenes desde 'self' y un dominio de confianza
-    'font-src': ['\'self\'', 'https://trusted-fonts.com'],  # Permitir fuentes desde 'self' y un dominio de confianza
-    'connect-src': ['\'self\''],  # Permitir conexiones XHR desde 'self'
-    'frame-src': ['\'self\''],  # Permitir marcos solo desde 'self'
+    'script-src': ['\'self\'', 'https://trusted-scripts.com'],  
+    'style-src': ['\'self\'', 'https://trusted-styles.com', 'https://fonts.googleapis.com'], 
+    'img-src': ['\'self\'', 'https://trusted-images.com'],
+    'font-src': ['\'self\'', 'https://trusted-fonts.com', 'https://fonts.gstatic.com'], 
+    'connect-src': ['\'self\''],  
+    'frame-src': ['\'self\''],  
+    'object-src': ['\'none\''], 
+    'media-src': ['\'self\''],  
+    'child-src': ['\'none\''],  
+    'form-action': ['\'self\''],  
+    'upgrade-insecure-requests': [],  
+    'manifest-src': ['\'self\''], 
+    'worker-src': ['\'self\''], 
 }
 
-# Aplicar CSP a la aplicación Flask
+
 talisman = Talisman(app, content_security_policy=csp)
+
+
+@app.after_request
+def remove_server_header(response):
+    response.headers['Server'] = 'GenericServer'  # Cambia el encabezado "Server" a un valor genérico según lo que me pido ZAP (pero aún da error...)
+    return response
+
+# PARTE NUEVA PARA AUTH 
+
+# Cargar variables de entorno (usa un .env en desarrollo o variables de entorno en producción)
+load_dotenv()
+
+# Configuración desde variables de entorno
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")  
+AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")
+AUTH0_CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET")
+AUTH0_CALLBACK_URL = os.getenv("AUTH0_CALLBACK_URL", "http://localhost:5000/callback")
+
+# Inicializar OAuth (Auth0)
+oauth = OAuth(app)
+oauth.register(
+    name="auth0",
+    client_id=AUTH0_CLIENT_ID,
+    client_secret=AUTH0_CLIENT_SECRET,
+    server_metadata_url=f"https://{AUTH0_DOMAIN}/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid profile email"},
+)
+
+# Configuración de sesión / cookies recomendadas
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+# app.config["SESSION_COOKIE_SECURE"] = True  # activar en HTTPS en producción
+
+# Decorador opcional para proteger rutas
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('auth0_login'))
+        return f(*args, **kwargs)
+    return decorated
+
+# Helper: mapear o crear un usuario local a partir de userinfo de Auth0
+def get_or_create_local_user(userinfo):
+    username = userinfo.get('email') or userinfo.get('sub')
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE username = ?", (username,))
+    user = cur.fetchone()
+    if user:
+        conn.close()
+        return user
+    # Crear usuario local con password vacío (porque autenticamos por Auth0)
+    cur.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, "", "user"))
+    conn.commit()
+    user_id = cur.lastrowid
+    cur.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    new_user = cur.fetchone()
+    conn.close()
+    return new_user
+
+# Ruta para iniciar login con Auth0
+@app.route('/auth/login')
+def auth0_login():
+    # redirige a Auth0 para autenticación
+    return oauth.auth0.authorize_redirect(AUTH0_CALLBACK_URL)
+
+# Callback que Auth0 redirige después de autenticar
+@app.route('/callback')
+def callback_handling():
+    # obtener token y claims
+    token = oauth.auth0.authorize_access_token()
+    # parse_id_token para obtener claims (sub, email, name, ...)
+    userinfo = oauth.auth0.parse_id_token(token)
+    # almacenar información en session
+    session['user'] = {
+        'sub': userinfo.get('sub'),
+        'name': userinfo.get('name'),
+        'email': userinfo.get('email'),
+    }
+    # mapear/crear usuario local y tomar su id/role para asociar tareas
+    local_user = get_or_create_local_user(userinfo)
+    if local_user:
+        # si local_user es Row (sqlite3.Row) accedemos por columnas
+        session['user_id'] = local_user['id']
+        session['role'] = local_user['role']
+    else:
+        # fallback: no pudo mapear, limpiar sesión parcial
+        session.pop('user_id', None)
+        session['role'] = 'user'
+    return redirect(url_for('dashboard'))
+
+# Logout que limpia sesión local y redirige a logout de Auth0
+@app.route('/auth/logout')
+def auth0_logout():
+    session.clear()
+    return_to = url_for('index', _external=True)
+    logout_url = f"https://{AUTH0_DOMAIN}/v2/logout?client_id={AUTH0_CLIENT_ID}&returnTo={return_to}"
+    return redirect(logout_url)
+
 
 # Conexión a la base de datos
 def get_db_connection():
@@ -53,7 +170,7 @@ class LoginForm(FlaskForm):
 def index():
     return 'Welcome to the Task Manager Application!'
 
-# Ruta de login
+# Ruta de login (local)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
@@ -129,11 +246,10 @@ def admin():
 
 if __name__ == '__main__':
     app.run(debug=True)
-    
-# Suprimir el encabezado "Server" usando un hook de respuesta
+
+
 @app.after_request
 def remove_server_header(response):
     response.headers['Server'] = ''
-    return response         
-
+    return response
 

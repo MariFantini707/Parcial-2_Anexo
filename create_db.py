@@ -49,6 +49,9 @@ def create_db():
     conn.close()
 
 print("Base de datos y tablas creadas con éxito.")
+create_db()
+
+
 
 
 

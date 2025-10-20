@@ -1,17 +1,18 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <title>Login</title>
-  </head>
+  <head><meta charset="UTF-8"><title>Login</title></head>
   <body>
     <h1>Login</h1>
     <form method="post">
-        {{ form.hidden_tag() }} <!-- CSRF token -->
+        {{ form.hidden_tag() }}
         Username: <input type="text" name="username" value="{{ form.username.data }}"><br>
         Password: <input type="password" name="password" value="{{ form.password.data }}"><br>
         <input type="submit" value="Login">
     </form>
+
+    <p>O iniciar sesión con Auth0:</p>
+    <a href="{{ url_for('auth0_login') }}">Login with Auth0</a>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <ul>
