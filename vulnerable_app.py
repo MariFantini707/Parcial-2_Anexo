@@ -14,24 +14,27 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 csrf = CSRFProtect(app)
 
-# Configuración de Flask-Talisman para CSP
+# Configuración de Flask-Talisman para CSP y otros encabezados de seguridad
 csp = {
-    'default-src': ['\'self\''],  # Solo permitir contenido de la misma fuente
-    'script-src': ['\'self\'', 'https://trusted-scripts.com'],  # Permitir scripts desde 'self' y un dominio de confianza
-    'style-src': ['\'self\'', 'https://trusted-styles.com', 'https://fonts.googleapis.com'],  # Permitir estilos desde 'self' y un dominio de confianza
-    'img-src': ['\'self\'', 'https://trusted-images.com'],  # Permitir imágenes desde 'self' y un dominio de confianza
-    'font-src': ['\'self\'', 'https://trusted-fonts.com', 'https://fonts.gstatic.com'],  # Permitir fuentes desde 'self' y un dominio de confianza
-    'connect-src': ['\'self\''],  # Permitir conexiones XHR desde 'self'
-    'frame-src': ['\'self\''],  # Permitir marcos solo desde 'self'
-    'object-src': ['\'none\''],  # Deshabilitar los objetos embebidos como applets de Java, Flash, etc.
-    'media-src': ['\'self\''],  # Permitir solo medios desde 'self'
-    'child-src': ['\'none\''],  # Deshabilitar cargas de contenido en iframes y marcos
-    'form-action': ['\'self\''],  # Permitir que los formularios solo apunten a 'self'
-    'upgrade-insecure-requests': [],  # Opcional: obliga a actualizar solicitudes HTTP a HTTPS
+    'default-src': ['\'self\''],
+    'script-src': ['\'self\'', 'https://trusted-scripts.com'],
+    'style-src': ['\'self\'', 'https://trusted-styles.com', 'https://fonts.googleapis.com'],
+    'img-src': ['\'self\'', 'https://trusted-images.com'],
+    'font-src': ['\'self\'', 'https://trusted-fonts.com', 'https://fonts.gstatic.com'],
+    'connect-src': ['\'self\''],
+    'frame-src': ['\'self\''],
+    'object-src': ['\'none\''],
+    'media-src': ['\'self\''],
+    'child-src': ['\'none\''],
+    'form-action': ['\'self\''],
+    'upgrade-insecure-requests': [],
 }
 
 # Aplicar CSP a la aplicación Flask
 talisman = Talisman(app, content_security_policy=csp)
+
+# Desactivar encabezado "Server"
+talisman = Talisman(app, force_https=False, content_security_policy=csp, response_headers={'Server': 'GenericServer'})
 
 # Conexión a la base de datos
 def get_db_connection():
